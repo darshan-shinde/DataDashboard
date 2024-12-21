@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Typography,
   MenuItem,
@@ -78,69 +78,62 @@ const mockData = [
 ];
 
 const Dashboard = () => {
-  const [items, setItems] = useState(mockData);
+  const [baseItems] = useState(mockData);
+  const [filteredItems, setFilteredItems] = useState(mockData);
   const [categoryFilter, setCategoryFilter] = useState("");
   const [engagementScoreFilter, setEngagementScoreFilter] = useState("");
   const [sortOption, setSortOption] = useState("");
   const [modalItem, setModalItem] = useState(null);
   const [open, setOpen] = useState(false);
 
+  const applyFilters = () => {
+    let data = [...baseItems];
+
+    if (categoryFilter) {
+      data = data.filter((item) => item.category === categoryFilter);
+    }
+
+    if (engagementScoreFilter) {
+      const [minScore, maxScore] = engagementScoreFilter.split("-").map(Number);
+      data = data.filter((item) => {
+        const engagementScore = item.likes + item.shares + item.comments;
+        return engagementScore >= minScore && engagementScore <= maxScore;
+      });
+    }
+
+    setFilteredItems(data);
+  };
+
   const handleCategoryFilter = (category) => {
     setCategoryFilter(category);
-    setEngagementScoreFilter("");
-    setSortOption("");
-    const filteredItems = mockData.filter((item) => item.category === category);
-    setItems(filteredItems);
   };
 
   const handleEngagementScoreFilter = (scoreRange) => {
-    setCategoryFilter("");
-    setSortOption("");
     setEngagementScoreFilter(scoreRange);
-    const scoreRangeValues = scoreRange.split("-");
-    const minScore = parseInt(scoreRangeValues[0]);
-    const maxScore = parseInt(scoreRangeValues[1]);
-    const filteredItems = mockData.filter((item) => {
-      const engagementScore = item.likes + item.shares + item.comments;
-      return engagementScore >= minScore && engagementScore <= maxScore;
-    });
-    setItems(filteredItems);
   };
 
   const handleSort = (option) => {
-    setCategoryFilter("");
-    setEngagementScoreFilter(""); 
     setSortOption(option);
+    const sortedItems = [...filteredItems].sort((a, b) => {
+      const engagementScoreA = a.likes + a.shares + a.comments;
+      const engagementScoreB = b.likes + b.shares + b.comments;
+      const reachA = (a.followers * engagementScoreA) / 100;
+      const reachB = (b.followers * engagementScoreB) / 100;
 
-    if (option === "engagementScore-asc") {
-      const sortedItems = items.sort((a, b) => {
-        const engagementScoreA = a.likes + a.shares + a.comments;
-        const engagementScoreB = b.likes + b.shares + b.comments;
-        return engagementScoreA - engagementScoreB;
-      });
-      setItems(sortedItems);
-    } else if (option === "engagementScore-desc") {
-      const sortedItems = items.sort((a, b) => {
-        const engagementScoreA = a.likes + a.shares + a.comments;
-        const engagementScoreB = b.likes + b.shares + b.comments;
-        return engagementScoreB - engagementScoreA;
-      });
-      setItems(sortedItems);
-    } else if (option === "reach-asc") {
-      const sortedItems = items.sort((a, b) => {
-        const reachA = (a.followers * (a.likes + a.shares + a.comments)) / 100;
-        const reachB = (b.followers * (b.likes + b.shares + b.comments)) / 100;
-        return reachA - reachB;
-      });
-      setItems(sortedItems);
-    } else if (option === "reach-desc") {
-      const sortedItems = items.sort((a, b) => {
-        const reachA = (a.followers * (a.likes + a.shares + a.comments)) / 100;
-        const reachB = (b.followers * (b.likes + b.shares + b.comments)) / 100;
-        return reachB - reachA;
-      });
-      setItems(sortedItems);
-    }
+      switch (option) {
+        case "engagementScore-asc":
+          return engagementScoreA - engagementScoreB;
+        case "engagementScore-desc":
+          return engagementScoreB - engagementScoreA;
+        case "reach-asc":
+          return reachA - reachB;
+        case "reach-desc":
+          return reachB - reachA;
+        default:
+          return 0;
+      }
+    });
+    setFilteredItems(sortedItems);
   };
 
   const handleViewDetails = (item) => {
@@ -155,10 +148,10 @@ const Dashboard = () => {
   ];
 
   const handleReset = () => {
-    setCategoryFilter(""); 
-    setEngagementScoreFilter(""); 
+    setCategoryFilter("");
+    setEngagementScoreFilter("");
     setSortOption("");
-    setItems([...mockData])
+    setFilteredItems([...baseItems]);
   };
 
   const renderCustomLabel = ({
@@ -189,6 +182,10 @@ const Dashboard = () => {
       </text>
     );
   };
+
+  useEffect(() => {
+    applyFilters();
+  }, [categoryFilter, engagementScoreFilter]);
 
   return (
     <>
@@ -282,7 +279,7 @@ const Dashboard = () => {
         </Grid>
         {/* Card */}
         <Grid container spacing={2} mb={2} mt={0} p={2}>
-          {items.map((item) => (
+          {filteredItems.map((item) => (
             <Grid
               item
               xs={12}
@@ -361,7 +358,7 @@ const Dashboard = () => {
                       sx={{
                         display: "flex",
                         flexDirection: "row",
-                        alignItems: "center", // Align text and icon vertically
+                        alignItems: "center",
                       }}
                     >
                       <Typography
